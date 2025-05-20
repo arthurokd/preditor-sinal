@@ -106,7 +106,9 @@ with col1:
 with col2:
     altura = st.number_input("Altura (cm)", min_value=0.0, step=0.1)
 with col3:
-    potencia = st.number_input("Potência (w)", min_value=0.0, step=0.1)
+    potencia_opcoes = {'50mW': 50.0, '100mW': 100.0, '200mW': 200.0}
+    potencia_selecionada = st.selectbox("Potência", options=list(potencia_opcoes.keys()))
+    potencia = potencia_opcoes[potencia_selecionada]
 
 # --- TREINAMENTO E PREVISÃO ---
 modelo, scaler_x, scaler_y, df = treinar_modelo()
@@ -114,23 +116,3 @@ modelo, scaler_x, scaler_y, df = treinar_modelo()
 if st.button("🔍 Prever Sinal"):
     sinal = prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y)
     st.success(f"✅ Sinal predito: **{sinal:.2f}**")
-
-    # Gráfico de regressão
-#    with torch.no_grad():
- #       x_tensor = torch.from_numpy(
-  #          scaler_x.transform(df[['COMBINED_FEATURE']].values).astype(np.float32)
-   #     )
-    #    y_pred = modelo(x_tensor)
-     #   y_pred_inv = scaler_y.inverse_transform(y_pred.numpy())
-      #  x_inv = df['COMBINED_FEATURE'].values
-       # ordem = np.argsort(x_inv)
-#
- #       fig, ax = plt.subplots(figsize=(8, 5))
-  #      ax.scatter(x_inv, df['Sinal'].values, color='skyblue', label='Dados reais', alpha=0.5)
-   #     ax.plot(x_inv[ordem], y_pred_inv[ordem], color='red', label='Reta de Regressão')
-    #    ax.set_xlabel("Variável Combinada")
-     #   ax.set_ylabel("Sinal")
-      #  ax.set_title("Regressão Linear")
-       # ax.grid(True)
-        #ax.legend()
-        #st.pyplot(fig)
