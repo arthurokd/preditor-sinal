@@ -9,7 +9,6 @@ from sklearn.preprocessing import StandardScaler
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
 st.set_page_config(page_title="Preditor de Sinal", layout="centered", page_icon="📡")
 
-# CSS personalizado: imagem de fundo e rodapé com nomes
 st.markdown(
     """
     <style>
@@ -20,7 +19,6 @@ st.markdown(
         background-repeat: no-repeat;
         background-attachment: fixed;
     }
-
     .footer {
         position: fixed;
         bottom: 10px;
@@ -46,21 +44,19 @@ st.markdown(
 
 # --- FUNÇÕES COM CACHE ---
 @st.cache_data
+
 def carregar_dados():
-    df = pd.read_csv(
-        "https://docs.google.com/spreadsheets/d/e/"
-        "2PACX-1vR9GhUPG4srpujFlyNaTi9sZ20Vg9XiqI820gLQXvB_Rst3FyMWEwaNxxjGk_Ut2A6gsvKSWdE5z8Kr"
-        "/pub?gid=817252977&single=true&output=csv"
-    )
+    url = "https://docs.google.com/spreadsheets/d/1HcvCK4XDx3I5U6wkq7ea0v4POH5o-jtD2ZoTB-xbj6E/export?format=csv"
+    df = pd.read_csv(url)
 
     df['COMBINED_FEATURE'] = (
         df['Distância (cm)'] +
         df['Altura (cm)'] +
-        df['Potência (w)']
+        df['Potência (mW)']
     ) / 3
 
     x_numpy = df[['COMBINED_FEATURE']].values
-    y_numpy = df[['Sinal']].values
+    y_numpy = df[['Campo (dbm)']].values
 
     scaler_x = StandardScaler()
     scaler_y = StandardScaler()
@@ -70,6 +66,7 @@ def carregar_dados():
     return x_normalizado, y_normalizado, scaler_x, scaler_y, df
 
 @st.cache_resource
+
 def treinar_modelo():
     x_normalizado, y_normalizado, scaler_x, scaler_y, df = carregar_dados()
 
@@ -106,13 +103,11 @@ with col1:
 with col2:
     altura = st.number_input("Altura (cm)", min_value=0.0, step=0.1)
 with col3:
-    potencia_opcoes = {'50mW': 50.0, '100mW': 100.0, '200mW': 200.0}
-    potencia_selecionada = st.selectbox("Potência", options=list(potencia_opcoes.keys()))
-    potencia = potencia_opcoes[potencia_selecionada]
+    potencia = st.number_input("Potência (mW)", min_value=0.0, step=1.0)
 
-# --- TREINAMENTO E PREVISÃO ---
 modelo, scaler_x, scaler_y, df = treinar_modelo()
 
 if st.button("🔍 Prever Sinal"):
     sinal = prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y)
-    st.success(f"✅ Sinal predito: **{sinal:.2f}**")
+    st.success(f"✅ Sinal predito: **{sinal:.2f} dBm**")
+
