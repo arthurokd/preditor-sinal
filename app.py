@@ -36,7 +36,7 @@ st.markdown(
     </div>
 
     <div class="footer">
-        Desenvolvido por <strong>Edvaldo</strong> e <strong>Arthur</strong> — IFPB Campus João Pessoa
+        Projeto viabilizado pelo CNPq, PIBIC e pelo IFPB
     </div>
     """,
     unsafe_allow_html=True
@@ -44,10 +44,10 @@ st.markdown(
 
 # --- FUNÇÕES COM CACHE ---
 @st.cache_data
-
 def carregar_dados():
     url = "https://docs.google.com/spreadsheets/d/1HcvCK4XDx3I5U6wkq7ea0v4POH5o-jtD2ZoTB-xbj6E/export?format=csv"
     df = pd.read_csv(url)
+    df.columns = df.columns.str.strip()  # Garantia contra espaços
 
     df['COMBINED_FEATURE'] = (
         df['Distância (cm)'] +
@@ -66,7 +66,6 @@ def carregar_dados():
     return x_normalizado, y_normalizado, scaler_x, scaler_y, df
 
 @st.cache_resource
-
 def treinar_modelo():
     x_normalizado, y_normalizado, scaler_x, scaler_y, df = carregar_dados()
 
@@ -103,7 +102,7 @@ with col1:
 with col2:
     altura = st.number_input("Altura (cm)", min_value=0.0, step=0.1)
 with col3:
-    potencia = st.number_input("Potência (mW)", min_value=0.0, step=1.0)
+    potencia = st.selectbox("Potência (mW)", options=[100, 300])
 
 modelo, scaler_x, scaler_y, df = treinar_modelo()
 
