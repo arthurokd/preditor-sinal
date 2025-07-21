@@ -1,54 +1,54 @@
 import streamlit as st
 import math
 
-st.set_page_config(page_title="Preditor de Sinal", layout="centered")
+# Função para prever o sinal
+def prever_sinal(distancia, altura, potencia_mw):
+    potencia_dbm = 10 * math.log10(potencia_mw)
+    perda = 20 * math.log10(distancia / 100) + 20 * math.log10(2.4e9) - 147.55
+    sinal_recebido = potencia_dbm - perda - (altura * 0.1)
+    return sinal_recebido
 
-st.markdown("<h1 style='text-align: center; color: green; font-size: 42px;'>📡 Predição de Sinal</h1>", unsafe_allow_html=True)
-
-# Inicializa dicionário para salvar previsões
+# Inicializa o estado das previsões
 if "previsoes" not in st.session_state:
     st.session_state.previsoes = {}
 
-# Entradas do usuário
-st.divider()
-st.markdown("### 🔢 Insira os dados abaixo para calcular o sinal:")
+# Define valores padrões para reset
+valor_padrao_distancia = 0
+valor_padrao_altura = 0
+valor_padrao_potencia = "100"
+valor_padrao_titulo = ""
 
-titulo = st.text_input("Título da predição")
+# Recupera valores atuais do estado ou define os padrões
+if "distancia_input" not in st.session_state:
+    st.session_state.distancia_input = valor_padrao_distancia
+if "altura_input" not in st.session_state:
+    st.session_state.altura_input = valor_padrao_altura
+if "potencia_input" not in st.session_state:
+    st.session_state.potencia_input = valor_padrao_potencia
+if "titulo_input" not in st.session_state:
+    st.session_state.titulo_input = valor_padrao_titulo
 
-col1, col2 = st.columns(2)
-with col1:
-    distancia = st.number_input("Distância (cm)", min_value=0, step=1, format="%d", key="distancia_input")
-with col2:
-    altura = st.number_input("Altura (cm)", min_value=0, step=1, format="%d", key="altura_input")
+# Interface
+st.markdown("<h1 style='color:green; font-size: 42px;'>Preditor de Sinal</h1>", unsafe_allow_html=True)
 
-potencia_mw = st.selectbox("Potência do Roteador (mW)", [100, 300], index=0)
+st.session_state.distancia_input = st.number_input("Distância (cm)", min_value=1, step=1, value=st.session_state.distancia_input, key="distancia")
+st.session_state.altura_input = st.number_input("Altura (cm)", min_value=0, step=1, value=st.session_state.altura_input, key="altura")
+st.session_state.potencia_input = st.selectbox("Potência do Roteador", options=["100", "300"], index=["100", "300"].index(st.session_state.potencia_input), key="potencia")
+st.session_state.titulo_input = st.text_input("Título da Previsão", value=st.session_state.titulo_input, key="titulo")
 
-# Fórmula de predição (ajuste conforme necessidade real)
-def prever_sinal(distancia_cm, altura_cm, potencia_mw):
-    if distancia_cm == 0:
-        return float('-inf')
-    sinal = 10 * math.log10(potencia_mw) - 20 * math.log10(distancia_cm / 100) + 10 * math.log10(altura_cm + 1)
-    return sinal
+# Conversão dos valores
+potencia_mw = int(st.session_state.potencia_input)
+distancia = st.session_state.distancia_input
+altura = st.session_state.altura_input
+titulo = st.session_state.titulo_input
 
-# Botão verde
-botao_css = """
-<style>
-div.stButton > button:first-child {
-    background-color: #28a745;
-    color: white;
-}
-</style>
-"""
-st.markdown(botao_css, unsafe_allow_html=True)
-
-if st.button("Prever sinal"):
+if st.button("Prever sinal", type="primary"):
     if titulo.strip() == "":
         st.warning("Por favor, insira um título para a predição.")
     else:
         resultado = prever_sinal(distancia, altura, potencia_mw)
-        st.success(f"📶 Sinal previsto: **{resultado:.3f} dBm**")
+        st.success(f"\U0001F4F6 Sinal previsto: **{resultado:.3f} dBm**")
 
-        # Salvar previsão
         st.session_state.previsoes[titulo] = {
             "Distância (cm)": distancia,
             "Altura (cm)": altura,
@@ -57,28 +57,17 @@ if st.button("Prever sinal"):
         }
 
         # Resetar campos
-        st.session_state.distancia_input = 0
-        st.session_state.altura_input = 0
+        st.session_state.distancia = valor_padrao_distancia
+        st.session_state.altura = valor_padrao_altura
+        st.session_state.potencia = valor_padrao_potencia
+        st.session_state.titulo = valor_padrao_titulo
 
-# Consulta de predições anteriores
-st.divider()
-st.markdown("### 📁 Consultar predições anteriores")
+        st.experimental_rerun()
 
+# Histórico
 if st.session_state.previsoes:
-    opcoes = list(st.session_state.previsoes.keys())
-    selecao = st.selectbox("Selecione uma predição", [""] + opcoes)
-
-    if selecao and selecao in st.session_state.previsoes:
-        dados = st.session_state.previsoes[selecao]
-        st.markdown("#### Detalhes da predição:")
-        st.write(f"**Título:** {selecao}")
-        st.write(f"**Distância:** {dados['Distância (cm)']} cm")
-        st.write(f"**Altura:** {dados['Altura (cm)']} cm")
-        st.write(f"**Potência:** {dados['Potência (mW)']} mW")
-        st.write(f"**Sinal (dBm):** {dados['Sinal (dBm)']:.3f} dBm")
-else:
-    st.info("Nenhuma predição foi realizada ainda.")
-
-st.markdown("---")
-st.markdown("<small>Projeto viabilizado pelo CNPq, PIBIC e pelo IFPB</small>", unsafe_allow_html=True)
-
+    st.markdown("---")
+    st.subheader("Histórico de Previsões")
+    for titulo, dados in st.session_state.previsoes.items():
+        st.markdown(f"### {titulo}")
+        st.write(dados)
