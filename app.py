@@ -133,10 +133,10 @@ if st.button("🔍 Prever Sinal"):
             "Sinal (dBm)": round(sinal, 3)
         }
 
-        # Resetar os campos
-        st.session_state.distancia = 0
-        st.session_state.altura = 0
-        st.session_state.nome_predicao = ""
+        # ✅ Resetar campos AQUI dentro do botão
+        st.session_state["distancia"] = 0
+        st.session_state["altura"] = 0
+        st.session_state["nome_predicao"] = ""
 
 # --- CONSULTAR PREDIÇÕES SALVAS ---
 st.markdown("### Consultar predições salvas")
