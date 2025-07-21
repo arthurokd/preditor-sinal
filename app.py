@@ -47,7 +47,6 @@ st.markdown(
 def carregar_dados():
     url = "https://docs.google.com/spreadsheets/d/1HcvCK4XDx3I5U6wkq7ea0v4POH5o-jtD2ZoTB-xbj6E/export?format=csv"
     df = pd.read_csv(url)
-    df.columns = df.columns.str.strip()  # Garantia contra espaços
 
     df['COMBINED_FEATURE'] = (
         df['Distância (cm)'] +
@@ -96,6 +95,9 @@ def prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y):
     return pred_invertido[0][0]
 
 # --- INTERFACE DE ENTRADA ---
+st.markdown("### 🔖 Dê um nome à sua predição:")
+nome_predicao = st.text_input("Título da Predição")
+
 col1, col2, col3 = st.columns(3)
 with col1:
     distancia = st.number_input("Distância (cm)", min_value=0.0, step=0.1)
@@ -106,7 +108,34 @@ with col3:
 
 modelo, scaler_x, scaler_y, df = treinar_modelo()
 
-if st.button("🔍 Prever Sinal"):
-    sinal = prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y)
-    st.success(f"✅ Sinal predito: **{sinal:.2f} dBm**")
+# Dicionário para armazenar predições (mantido na sessão)
+if "predicoes_salvas" not in st.session_state:
+    st.session_state.predicoes_salvas = {}
 
+if st.button("🔍 Prever Sinal"):
+    if nome_predicao.strip() == "":
+        st.warning("Por favor, insira um nome para sua predição.")
+    else:
+        sinal = prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y)
+        st.success(f"✅ Sinal predito: **{sinal:.2f} dBm**")
+
+        # Salvar a predição
+        st.session_state.predicoes_salvas[nome_predicao] = {
+            "Distância (cm)": distancia,
+            "Altura (cm)": altura,
+            "Potência (mW)": potencia,
+            "Sinal (dBm)": round(sinal, 2)
+        }
+
+# Exibir predições salvas
+st.markdown("### 📁 Consultar predições salvas")
+if st.session_state.predicoes_salvas:
+    nome_escolhido = st.selectbox("Selecione uma predição:", options=list(st.session_state.predicoes_salvas.keys()))
+    if nome_escolhido:
+        pred = st.session_state.predicoes_salvas[nome_escolhido]
+        st.write(f"**Distância (cm):** {pred['Distância (cm)']}")
+        st.write(f"**Altura (cm):** {pred['Altura (cm)']}")
+        st.write(f"**Potência (mW):** {pred['Potência (mW)']}")
+        st.write(f"📡 **Sinal (dBm):** {pred['Sinal (dBm)']}")
+else:
+    st.info("Nenhuma predição salva ainda.")
