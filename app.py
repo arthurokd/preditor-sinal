@@ -94,48 +94,62 @@ def prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y):
         pred_invertido = scaler_y.inverse_transform(pred_normalizado.numpy())
     return pred_invertido[0][0]
 
-# --- INTERFACE DE ENTRADA ---
+# --- ESTADO INICIAL E VARIÁVEIS DE SESSÃO ---
+modelo, scaler_x, scaler_y, df = treinar_modelo()
+
+if "predicoes_salvas" not in st.session_state:
+    st.session_state.predicoes_salvas = {}
+
+if "distancia" not in st.session_state:
+    st.session_state.distancia = 0
+if "altura" not in st.session_state:
+    st.session_state.altura = 0
+if "nome_predicao" not in st.session_state:
+    st.session_state.nome_predicao = ""
+
+# --- ENTRADAS DO USUÁRIO ---
 st.markdown("### 🔖 Dê um nome à sua predição:")
-nome_predicao = st.text_input("Título da Predição")
+nome_predicao = st.text_input("Título da Predição", value=st.session_state.nome_predicao, key="nome_predicao")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    distancia = st.number_input("Distância (cm)", min_value=0.0, step=0.1)
+    distancia = st.number_input("Distância (cm)", min_value=0, step=1, format="%d", key="distancia")
 with col2:
-    altura = st.number_input("Altura (cm)", min_value=0.0, step=0.1)
+    altura = st.number_input("Altura (cm)", min_value=0, step=1, format="%d", key="altura")
 with col3:
     potencia = st.selectbox("Potência (mW)", options=[100, 300])
-
-modelo, scaler_x, scaler_y, df = treinar_modelo()
-
-# Dicionário para armazenar predições (mantido na sessão)
-if "predicoes_salvas" not in st.session_state:
-    st.session_state.predicoes_salvas = {}
 
 if st.button("🔍 Prever Sinal"):
     if nome_predicao.strip() == "":
         st.warning("Por favor, insira um nome para sua predição.")
     else:
         sinal = prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y)
-        st.success(f"✅ Sinal predito: **{sinal:.2f} dBm**")
+        st.success(f"✅ Sinal predito: **{sinal:.3f} dBm**")
 
-        # Salvar a predição
         st.session_state.predicoes_salvas[nome_predicao] = {
             "Distância (cm)": distancia,
             "Altura (cm)": altura,
             "Potência (mW)": potencia,
-            "Sinal (dBm)": round(sinal, 2)
+            "Sinal (dBm)": round(sinal, 3)
         }
 
-# Exibir predições salvas
-st.markdown("### 📁 Consultar predições salvas")
+        # Resetar os campos
+        st.session_state.distancia = 0
+        st.session_state.altura = 0
+        st.session_state.nome_predicao = ""
+
+# --- CONSULTAR PREDIÇÕES SALVAS ---
+st.markdown("### Consultar predições salvas")
+
 if st.session_state.predicoes_salvas:
-    nome_escolhido = st.selectbox("Selecione uma predição:", options=list(st.session_state.predicoes_salvas.keys()))
-    if nome_escolhido:
+    nome_escolhido = st.selectbox("Selecione uma predição:", options=[""] + list(st.session_state.predicoes_salvas.keys()))
+    
+    if nome_escolhido and nome_escolhido in st.session_state.predicoes_salvas:
         pred = st.session_state.predicoes_salvas[nome_escolhido]
         st.write(f"**Distância (cm):** {pred['Distância (cm)']}")
         st.write(f"**Altura (cm):** {pred['Altura (cm)']}")
         st.write(f"**Potência (mW):** {pred['Potência (mW)']}")
-        st.write(f"📡 **Sinal (dBm):** {pred['Sinal (dBm)']}")
+        st.write(f"📡 **Sinal (dBm):** {pred['Sinal (dBm)']:.3f}")
 else:
     st.info("Nenhuma predição salva ainda.")
+
