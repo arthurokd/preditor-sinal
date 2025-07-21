@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 
 # --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
@@ -94,62 +93,63 @@ def prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y):
         pred_invertido = scaler_y.inverse_transform(pred_normalizado.numpy())
     return pred_invertido[0][0]
 
-# --- ESTADO INICIAL E VARIÁVEIS DE SESSÃO ---
-modelo, scaler_x, scaler_y, df = treinar_modelo()
-
-if "predicoes_salvas" not in st.session_state:
-    st.session_state.predicoes_salvas = {}
-
+# --- CONTROLE DE ESTADO INICIAL ---
 if "distancia" not in st.session_state:
     st.session_state.distancia = 0
 if "altura" not in st.session_state:
     st.session_state.altura = 0
+if "potencia" not in st.session_state:
+    st.session_state.potencia = 100
 if "nome_predicao" not in st.session_state:
     st.session_state.nome_predicao = ""
+if "predicoes_salvas" not in st.session_state:
+    st.session_state.predicoes_salvas = {}
 
-# --- ENTRADAS DO USUÁRIO ---
-st.markdown("### 🔖 Dê um nome à sua predição:")
-nome_predicao = st.text_input("Título da Predição", value=st.session_state.nome_predicao, key="nome_predicao")
+# --- INTERFACE ---
+st.text_input("Dê um nome para essa predição:", key="nome_predicao")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    distancia = st.number_input("Distância (cm)", min_value=0, step=1, format="%d", key="distancia")
+    st.session_state.distancia = st.number_input("Distância (cm)", min_value=0, step=1, format="%d", key="distancia")
 with col2:
-    altura = st.number_input("Altura (cm)", min_value=0, step=1, format="%d", key="altura")
+    st.session_state.altura = st.number_input("Altura (cm)", min_value=0, step=1, format="%d", key="altura")
 with col3:
-    potencia = st.selectbox("Potência (mW)", options=[100, 300])
+    st.session_state.potencia = st.selectbox("Potência (mW)", [100, 300], key="potencia")
+
+modelo, scaler_x, scaler_y, df = treinar_modelo()
 
 if st.button("🔍 Prever Sinal"):
-    if nome_predicao.strip() == "":
+    if st.session_state.nome_predicao.strip() == "":
         st.warning("Por favor, insira um nome para sua predição.")
     else:
-        sinal = prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y)
+        sinal = prever_sinal(
+            st.session_state.distancia,
+            st.session_state.altura,
+            st.session_state.potencia,
+            modelo, scaler_x, scaler_y
+        )
         st.success(f"✅ Sinal predito: **{sinal:.3f} dBm**")
 
-        st.session_state.predicoes_salvas[nome_predicao] = {
-            "Distância (cm)": distancia,
-            "Altura (cm)": altura,
-            "Potência (mW)": potencia,
+        st.session_state.predicoes_salvas[st.session_state.nome_predicao] = {
+            "Distância (cm)": st.session_state.distancia,
+            "Altura (cm)": st.session_state.altura,
+            "Potência (mW)": st.session_state.potencia,
             "Sinal (dBm)": round(sinal, 3)
         }
 
-        # ✅ Resetar campos AQUI dentro do botão
-        st.session_state["distancia"] = 0
-        st.session_state["altura"] = 0
-        st.session_state["nome_predicao"] = ""
+        # Resetar os campos após a predição
+        st.session_state.distancia = 0
+        st.session_state.altura = 0
+        st.session_state.potencia = 100
+        st.session_state.nome_predicao = ""
 
-# --- CONSULTAR PREDIÇÕES SALVAS ---
-st.markdown("### Consultar predições salvas")
-
+# --- CONSULTAR PREDIÇÕES ANTERIORES ---
 if st.session_state.predicoes_salvas:
-    nome_escolhido = st.selectbox("Selecione uma predição:", options=[""] + list(st.session_state.predicoes_salvas.keys()))
-    
-    if nome_escolhido and nome_escolhido in st.session_state.predicoes_salvas:
-        pred = st.session_state.predicoes_salvas[nome_escolhido]
-        st.write(f"**Distância (cm):** {pred['Distância (cm)']}")
-        st.write(f"**Altura (cm):** {pred['Altura (cm)']}")
-        st.write(f"**Potência (mW):** {pred['Potência (mW)']}")
-        st.write(f"📡 **Sinal (dBm):** {pred['Sinal (dBm)']:.3f}")
-else:
-    st.info("Nenhuma predição salva ainda.")
+    st.markdown("### 📊 Consultar predições anteriores")
+    nomes_predicoes = list(st.session_state.predicoes_salvas.keys())
+    nome_selecionado = st.selectbox("Selecione uma predição salva:", [""] + nomes_predicoes)
 
+    if nome_selecionado:
+        dados = st.session_state.predicoes_salvas[nome_selecionado]
+        st.write("#### Dados da predição:")
+        st.write(pd.DataFrame([dados]))
