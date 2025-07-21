@@ -1,155 +1,70 @@
 import streamlit as st
-import torch
-import torch.nn as nn
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
+import math
 
-# --- CONFIGURAÇÃO DA PÁGINA E ESTILO ---
-st.set_page_config(page_title="Preditor de Sinal", layout="centered", page_icon="📡")
+st.set_page_config(page_title="Preditor de Sinal", layout="centered")
 
-st.markdown(
-    """
-    <style>
-    body {
-        background-image: url('https://upload.wikimedia.org/wikipedia/commons/5/5c/Marca_IFPB.png');
-        background-size: contain;
-        background-position: top right;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }
-    .footer {
-        position: fixed;
-        bottom: 10px;
-        left: 0;
-        right: 0;
-        text-align: center;
-        font-size: 16px;
-        color: #555;
-    }
-    </style>
+st.markdown("<h1 style='text-align: center; color: #2c3e50;'>📡 Predição de Sinal (dbm)</h1>", unsafe_allow_html=True)
 
-    <div style="text-align: center;">
-        <h1 style="color: #4CAF50;">📡 Preditor de Sinal</h1>
-        <p style="font-size: 18px;">Informe os dados abaixo para prever o valor do sinal:</p>
-    </div>
+# Inicializar o dicionário de previsões se não existir
+if "previsoes" not in st.session_state:
+    st.session_state.previsoes = {}
 
-    <div class="footer">
-        Projeto viabilizado pelo CNPq, PIBIC e pelo IFPB
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Entradas do usuário
+st.divider()
+st.markdown("### 🔢 Insira os dados abaixo para calcular o sinal:")
 
-# --- FUNÇÕES COM CACHE ---
-@st.cache_data
-def carregar_dados():
-    url = "https://docs.google.com/spreadsheets/d/1HcvCK4XDx3I5U6wkq7ea0v4POH5o-jtD2ZoTB-xbj6E/export?format=csv"
-    df = pd.read_csv(url)
+titulo = st.text_input("Título da predição")
 
-    df['COMBINED_FEATURE'] = (
-        df['Distância (cm)'] +
-        df['Altura (cm)'] +
-        df['Potência (mW)']
-    ) / 3
-
-    x_numpy = df[['COMBINED_FEATURE']].values
-    y_numpy = df[['Campo (dbm)']].values
-
-    scaler_x = StandardScaler()
-    scaler_y = StandardScaler()
-    x_normalizado = scaler_x.fit_transform(x_numpy)
-    y_normalizado = scaler_y.fit_transform(y_numpy)
-
-    return x_normalizado, y_normalizado, scaler_x, scaler_y, df
-
-@st.cache_resource
-def treinar_modelo():
-    x_normalizado, y_normalizado, scaler_x, scaler_y, df = carregar_dados()
-
-    x = torch.from_numpy(x_normalizado.astype(np.float32))
-    y = torch.from_numpy(y_normalizado.astype(np.float32)).view(-1, 1)
-
-    model = nn.Linear(1, 1)
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-
-    for _ in range(1000):
-        y_pred = model(x)
-        loss = criterion(y_pred, y)
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-
-    return model, scaler_x, scaler_y, df
-
-def prever_sinal(distancia, altura, potencia, modelo, scaler_x, scaler_y):
-    combined_feature = (distancia + altura + potencia) / 3
-    feature_normalizada = scaler_x.transform(np.array([[combined_feature]]))
-    input_tensor = torch.from_numpy(feature_normalizada.astype(np.float32))
-
-    with torch.no_grad():
-        pred_normalizado = modelo(input_tensor)
-        pred_invertido = scaler_y.inverse_transform(pred_normalizado.numpy())
-    return pred_invertido[0][0]
-
-# --- CONTROLE DE ESTADO INICIAL ---
-if "distancia" not in st.session_state:
-    st.session_state.distancia = 0
-if "altura" not in st.session_state:
-    st.session_state.altura = 0
-if "potencia" not in st.session_state:
-    st.session_state.potencia = 100
-if "nome_predicao" not in st.session_state:
-    st.session_state.nome_predicao = ""
-if "predicoes_salvas" not in st.session_state:
-    st.session_state.predicoes_salvas = {}
-
-# --- INTERFACE ---
-st.text_input("Dê um nome para essa predição:", key="nome_predicao")
-
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
-    st.session_state.distancia = st.number_input("Distância (cm)", min_value=0, step=1, format="%d", key="distancia")
+    distancia = st.number_input("Distância (cm)", min_value=0, step=1, format="%d", key="distancia_input")
 with col2:
-    st.session_state.altura = st.number_input("Altura (cm)", min_value=0, step=1, format="%d", key="altura")
-with col3:
-    st.session_state.potencia = st.selectbox("Potência (mW)", [100, 300], key="potencia")
+    altura = st.number_input("Altura da Antena (cm)", min_value=0, step=1, format="%d", key="altura_input")
 
-modelo, scaler_x, scaler_y, df = treinar_modelo()
+# Função de predição (pode ser substituída pela fórmula real)
+def prever_sinal(distancia_cm, altura_cm):
+    if distancia_cm == 0:
+        return float('-inf')  # Evita log(0)
+    sinal = -20 * math.log10(distancia_cm / 100) + 10 * math.log10(altura_cm + 1)
+    return sinal
 
-if st.button("🔍 Prever Sinal"):
-    if st.session_state.nome_predicao.strip() == "":
-        st.warning("Por favor, insira um nome para sua predição.")
+# Botão animado
+if st.button("📊 Prever sinal", type="primary"):
+    if titulo.strip() == "":
+        st.warning("Por favor, insira um título para a predição.")
     else:
-        sinal = prever_sinal(
-            st.session_state.distancia,
-            st.session_state.altura,
-            st.session_state.potencia,
-            modelo, scaler_x, scaler_y
-        )
-        st.success(f"✅ Sinal predito: **{sinal:.3f} dBm**")
+        resultado = prever_sinal(distancia, altura)
+        st.success(f"📶 Sinal previsto: **{resultado:.3f} dBm**")
 
-        st.session_state.predicoes_salvas[st.session_state.nome_predicao] = {
-            "Distância (cm)": st.session_state.distancia,
-            "Altura (cm)": st.session_state.altura,
-            "Potência (mW)": st.session_state.potencia,
-            "Sinal (dBm)": round(sinal, 3)
+        # Salva a predição
+        st.session_state.previsoes[titulo] = {
+            "Distância (cm)": distancia,
+            "Altura (cm)": altura,
+            "Sinal (dBm)": round(resultado, 3)
         }
 
-        # Resetar os campos após a predição
-        st.session_state.distancia = 0
-        st.session_state.altura = 0
-        st.session_state.potencia = 100
-        st.session_state.nome_predicao = ""
+        # Resetar campos
+        st.session_state.distancia_input = 0
+        st.session_state.altura_input = 0
+        st.session_state["titulo"] = ""
 
-# --- CONSULTAR PREDIÇÕES ANTERIORES ---
-if st.session_state.predicoes_salvas:
-    st.markdown("### 📊 Consultar predições anteriores")
-    nomes_predicoes = list(st.session_state.predicoes_salvas.keys())
-    nome_selecionado = st.selectbox("Selecione uma predição salva:", [""] + nomes_predicoes)
+# Seleção de predições anteriores
+st.divider()
+st.markdown("### 📁 Consultar predições anteriores")
 
-    if nome_selecionado:
-        dados = st.session_state.predicoes_salvas[nome_selecionado]
-        st.write("#### Dados da predição:")
-        st.write(pd.DataFrame([dados]))
+if st.session_state.previsoes:
+    opcoes = list(st.session_state.previsoes.keys())
+    selecao = st.selectbox("Selecione uma predição para visualizar os detalhes", [""] + opcoes)
+
+    if selecao and selecao in st.session_state.previsoes:
+        dados = st.session_state.previsoes[selecao]
+        st.markdown("#### Detalhes da predição:")
+        st.write(f"**Título:** {selecao}")
+        st.write(f"**Distância:** {dados['Distância (cm)']} cm")
+        st.write(f"**Altura:** {dados['Altura (cm)']} cm")
+        st.write(f"**Sinal (dBm):** {dados['Sinal (dBm)']:.3f} dBm")
+else:
+    st.info("Nenhuma predição foi realizada ainda.")
+
+st.markdown("---")
+st.markdown("<small>Projeto viabilizado pelo CNPq, PIBIC e pelo IFPB</small>", unsafe_allow_html=True)
